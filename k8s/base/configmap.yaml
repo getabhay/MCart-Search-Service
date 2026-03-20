@@ -11,6 +11,6 @@ data:
   DB_USERNAME: "postgres"
   ES_INDEX: "products_v2"
   ES_INDEX_ALIAS: "products"
-  ES_URL: "https://<replace-with-elastic-url>"
+  ES_URL: "https://b1a40f0356f542cb8641675926620cdd.ap-south-1.aws.elastic-cloud.com:443"
   S3_BUCKET: "mcart-bulk-upload"
   S3_IMAGE_BUCKET: "mcart-product-images"
