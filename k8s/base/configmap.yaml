@@ -14,4 +14,3 @@ data:
   ES_URL: "https://<replace-with-elastic-url>"
   S3_BUCKET: "mcart-bulk-upload"
   S3_IMAGE_BUCKET: "mcart-product-images"
-  MCART_PRODUCT_SEARCH_BASE_URL: "http://mcart-product-search-service.mcart.svc.cluster.local:8081"
