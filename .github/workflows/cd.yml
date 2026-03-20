@@ -55,16 +55,19 @@ jobs:
           script: |
             set -e
             IMAGE="${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.image_tag }}"
-            sudo kubectl apply -f /opt/mcart-product-search-service/k8s/base/namespace.yaml
-            sudo kubectl apply -f /opt/mcart-product-search-service/k8s/base/configmap.yaml
-            sudo kubectl create secret generic mcart-shared-secrets -n mcart \
+            k() { sudo k3s kubectl --request-timeout=60s "$@"; }
+            retry() { for i in 1 2 3 4 5; do "$@" && return 0; sleep 10; done; return 1; }
+
+            retry k apply --validate=false -f /opt/mcart-product-search-service/k8s/base/namespace.yaml
+            retry k apply --validate=false -f /opt/mcart-product-search-service/k8s/base/configmap.yaml
+            retry k create secret generic mcart-shared-secrets -n mcart \
               --from-literal=AWS_ACCESS_KEY='${{ secrets.AWS_ACCESS_KEY }}' \
               --from-literal=AWS_SECRET_KEY='${{ secrets.AWS_SECRET_KEY }}' \
               --from-literal=DB_PASSWORD='${{ secrets.DB_PASSWORD }}' \
               --from-literal=ES_BASE64_API_KEY='${{ secrets.ES_BASE64_API_KEY }}' \
-              --dry-run=client -o yaml | sudo kubectl apply -f -
-            sudo kubectl apply -f /opt/mcart-product-search-service/k8s/base/deployment.yaml
-            sudo kubectl apply -f /opt/mcart-product-search-service/k8s/base/service.yaml
-            sudo kubectl apply -f /opt/mcart-product-search-service/k8s/base/ingress.yaml
-            sudo kubectl set image deployment/mcart-product-search-service mcart-product-search-service="$IMAGE" -n mcart
-            sudo kubectl rollout status deployment/mcart-product-search-service -n mcart --timeout=240s
+              --dry-run=client -o yaml | retry k apply --validate=false -f -
+            retry k apply --validate=false -f /opt/mcart-product-search-service/k8s/base/deployment.yaml
+            retry k apply --validate=false -f /opt/mcart-product-search-service/k8s/base/service.yaml
+            retry k apply --validate=false -f /opt/mcart-product-search-service/k8s/base/ingress.yaml
+            retry k set image deployment/mcart-product-search-service mcart-product-search-service="$IMAGE" -n mcart
+            retry k rollout status deployment/mcart-product-search-service -n mcart --timeout=240s
