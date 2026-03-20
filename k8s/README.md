@@ -230,3 +230,22 @@ In each repo settings:
 - Branch protection on `main`:
   - require PR
   - require status check `CI / build-and-test`
+
+## 15) CD behavior for ConfigMap and Ingress
+
+How ConfigMap updates work with current CD:
+
+- CD reapplies `k8s/base/configmap.yaml` during deploy.
+- CD then updates deployment image tag to `sha-${GITHUB_SHA}`.
+- This triggers rollout, so new pods read updated ConfigMap values.
+
+Important:
+
+- If only ConfigMap changes and no rollout happens, old pods keep old env values.
+- Current pipelines are safe because `kubectl set image ...` forces rollout on each deploy.
+
+Ingress ownership recommendation (single ingress setup):
+
+- Keep only one source of truth for ingress to avoid conflicts.
+- Recommended: product-service repo owns `mcart-ingress`.
+- In search-service CD, skip `kubectl apply -f /opt/mcart-product-search-service/k8s/base/ingress.yaml`.
