@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcart-product-search-service
+  namespace: mcart
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mcart-product-search-service
+  template:
+    metadata:
+      labels:
+        app: mcart-product-search-service
+    spec:
+      containers:
+        - name: mcart-product-search-service
+          image: ghcr.io/getabhay/mcart-product-search-service:latest
+          ports:
+            - containerPort: 8081
+          envFrom:
+            - configMapRef:
+                name: mcart-shared-config
+            - secretRef:
+                name: mcart-shared-secrets

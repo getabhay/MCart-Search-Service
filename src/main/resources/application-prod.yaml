@@ -1,0 +1,20 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://mcart-db.cfaqum0egx32.ap-south-1.rds.amazonaws.com:5432/${DB_NAME}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+  cloud:
+    aws:
+      region:
+        static: ${AWS_REGION}
+      credentials:
+        access-key: ${AWS_ACCESS_KEY}
+        secret-key: ${AWS_SECRET_KEY}
+
+mcart:
+  elastic:
+    url: ${ES_URL}
+    api-key: ${ES_BASE64_API_KEY}
+  search:
+    bootstrap: false

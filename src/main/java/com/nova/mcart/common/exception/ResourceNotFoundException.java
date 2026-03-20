@@ -1,0 +1,8 @@
+package com.nova.mcart.common.exception;
+
+public class ResourceNotFoundException extends RuntimeException {
+
+    public ResourceNotFoundException(String message) {
+        super(message);
+    }
+}

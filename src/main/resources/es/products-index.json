@@ -1,0 +1,158 @@
+{
+  "settings": {
+    "analysis": {
+      "filter": {
+        "autocomplete_filter": {
+          "type": "edge_ngram",
+          "min_gram": 2,
+          "max_gram": 20
+        }
+      },
+      "tokenizer": {
+        "category_path_tokenizer": {
+          "type": "path_hierarchy",
+          "delimiter": "/"
+        }
+      },
+      "analyzer": {
+        "autocomplete_index": {
+          "type": "custom",
+          "tokenizer": "standard",
+          "filter": ["lowercase", "asciifolding", "autocomplete_filter"]
+        },
+        "autocomplete_search": {
+          "type": "custom",
+          "tokenizer": "standard",
+          "filter": ["lowercase", "asciifolding"]
+        },
+        "category_path_analyzer": {
+          "type": "custom",
+          "tokenizer": "category_path_tokenizer"
+        }
+      }
+    }
+  },
+  "mappings": {
+    "dynamic": "false",
+    "properties": {
+      "id": { "type": "long" },
+      "primaryImageUrl": {"type": "keyword", "ignore_above": 1024 },
+      "productAttrValues": {
+        "type": "text",
+        "fields": {
+          "autocomplete": {
+            "type": "text",
+            "analyzer": "autocomplete_index",
+            "search_analyzer": "autocomplete_search"
+          },
+          "keyword": { "type": "keyword", "ignore_above": 256 }
+        }
+      },
+      "variantAttrValues": {
+        "type": "text",
+        "fields": {
+          "autocomplete": {
+            "type": "text",
+            "analyzer": "autocomplete_index",
+            "search_analyzer": "autocomplete_search"
+          },
+          "keyword": { "type": "keyword", "ignore_above": 256 }
+        }
+      },
+
+      "name": {
+        "type": "text",
+        "fields": {
+          "autocomplete": { "type": "text", "analyzer": "autocomplete_index", "search_analyzer": "autocomplete_search" },
+          "keyword": { "type": "keyword", "ignore_above": 256 }
+        }
+      },
+      "slug": { "type": "keyword" },
+
+      "status": { "type": "keyword" },
+      "isActive": { "type": "boolean" },
+
+      "brandId": { "type": "long" },
+      "brandName": {
+        "type": "text",
+        "fields": {
+          "autocomplete": { "type": "text", "analyzer": "autocomplete_index", "search_analyzer": "autocomplete_search" },
+          "keyword": { "type": "keyword", "ignore_above": 256 }
+        }
+      },
+      "brandSlug": { "type": "keyword" },
+
+      "categoryId": { "type": "long" },
+      "categoryName": {
+        "type": "text",
+        "fields": {
+          "autocomplete": { "type": "text", "analyzer": "autocomplete_index", "search_analyzer": "autocomplete_search" },
+          "keyword": { "type": "keyword", "ignore_above": 256 }
+        }
+      },
+      "categorySlug": { "type": "keyword" },
+
+      "categoryPath": { "type": "keyword" },
+      "categoryPathIds": { "type": "long" },
+
+      "categoryPathTree": { "type": "text", "analyzer": "category_path_analyzer" },
+
+      "categoryPathNames": {
+        "type": "text",
+        "fields": {
+          "autocomplete": { "type": "text", "analyzer": "autocomplete_index", "search_analyzer": "autocomplete_search" },
+          "keyword": { "type": "keyword", "ignore_above": 256 }
+        }
+      },
+      "categoryPathSlugs": { "type": "keyword" },
+
+      "minPrice": { "type": "scaled_float", "scaling_factor": 100 },
+      "maxPrice": { "type": "scaled_float", "scaling_factor": 100 },
+
+      "avgRating": { "type": "scaled_float", "scaling_factor": 100 },
+      "totalRatingCount": { "type": "integer" },
+      "ratingCount1": { "type": "integer" },
+      "ratingCount2": { "type": "integer" },
+      "ratingCount3": { "type": "integer" },
+      "ratingCount4": { "type": "integer" },
+      "ratingCount5": { "type": "integer" },
+
+      "popularityScore": { "type": "double" },
+
+      "productAttributes": {
+        "type": "nested",
+        "properties": {
+          "attributeId": { "type": "long" },
+          "attributeSlug": { "type": "keyword" },
+          "valueId": { "type": "long" },
+          "valueSlug": { "type": "keyword" }
+        }
+      },
+
+      "variants": {
+        "type": "nested",
+        "properties": {
+          "id": { "type": "long" },
+          "sku": { "type": "keyword" },
+          "mrp": { "type": "scaled_float", "scaling_factor": 100 },
+          "sellingPrice": { "type": "scaled_float", "scaling_factor": 100 },
+          "stockQuantity": { "type": "integer" },
+          "isActive": { "type": "boolean" },
+          "status": { "type": "keyword" },
+          "primaryImageUrl": { "type": "keyword", "ignore_above": 1024 },
+          "avgRating": { "type": "scaled_float", "scaling_factor": 100 },
+          "totalRatingCount": { "type": "integer" },
+          "attrs": {
+            "type": "nested",
+            "properties": {
+              "attributeId": { "type": "long" },
+              "attributeSlug": { "type": "keyword" },
+              "valueId": { "type": "long" },
+              "valueSlug": { "type": "keyword" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

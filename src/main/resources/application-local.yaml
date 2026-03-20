@@ -1,0 +1,37 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/${DB_NAME}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+  cloud:
+    aws:
+      region: ${AWS_REGION}
+      s3:
+        bucket-name: ${S3_BUCKET}
+        image-bucket-name: ${S3_IMAGE_BUCKET}
+      credentials:
+        access-key: ${AWS_ACCESS_KEY}
+        secret-key: ${AWS_SECRET_KEY}
+
+  main:
+    keep-alive: true
+    lazy-initialization: true
+
+  data:
+    jpa:
+      repositories:
+        bootstrap-mode: deferred
+
+  devtools:
+    restart:
+      enabled: true
+      log-condition-evaluation-delta: false # Reduces logging overhead
+
+mcart:
+  elastic:
+    url: ${ES_URL}
+    api-key: ${ES_BASE64_API_KEY}
+  search:
+    bootstrap: true
+

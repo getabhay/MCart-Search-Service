@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mcart-shared-config
+  namespace: mcart
+data:
+  ENV: "prod"
+  AWS_CDN_URL: "https://d1t2ido6y957c5.cloudfront.net"
+  AWS_REGION: "ap-south-1"
+  DB_NAME: "product_db"
+  DB_USERNAME: "postgres"
+  ES_INDEX: "products_v2"
+  ES_INDEX_ALIAS: "products"
+  ES_URL: "https://<replace-with-elastic-url>"
+  S3_BUCKET: "mcart-bulk-upload"
+  S3_IMAGE_BUCKET: "mcart-product-images"
+  MCART_PRODUCT_SEARCH_BASE_URL: "http://mcart-product-search-service.mcart.svc.cluster.local:8081"

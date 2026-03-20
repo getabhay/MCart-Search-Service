@@ -1,0 +1,77 @@
+server:
+  port: 8081
+
+spring:
+  profiles:
+    active: ${ENV}
+  cloud:
+    aws:
+      cdn:
+        url: ${AWS_CDN_URL}
+      region:
+        static: ${AWS_REGION}
+
+  output:
+    ansi:
+      enabled: always
+
+  main:
+    log-startup-info: true
+
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 2
+      # If the app crashes, the DB will realize the connection is dead faster
+      keepalive-time: 30000
+      # Force connections to recycle frequently in local dev
+      max-lifetime: 300000
+      # Reduces the time a connection can sit unused before being closed
+      idle-timeout: 30000
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+    open-in-view: true
+
+logging:
+  pattern:
+    console: "%clr(%d{HH:mm:ss}){faint} %clr(%-5p) %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}"
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+info:
+  app:
+    version: "@project.version@"
+
+mcart:
+  elastic:
+    url: ""
+    api-key: ""
+  search:
+    bootstrap: false
+    product:
+      index: ${ES_INDEX}
+      alias: ${ES_INDEX_ALIAS}
+      index-definition-location: classpath:es/products-index.json
+
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui
+    operationsSorter: method
+    tagsSorter: alpha
+
