@@ -8,6 +8,9 @@ spring:
     aws:
       region:
         static: ${AWS_REGION}
+      s3:
+        bucket-name: ${S3_BUCKET}
+        image-bucket-name: ${S3_IMAGE_BUCKET}
       credentials:
         access-key: ${AWS_ACCESS_KEY}
         secret-key: ${AWS_SECRET_KEY}

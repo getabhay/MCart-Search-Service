@@ -1,20 +1,20 @@
 # Kubernetes Deployment Runbook (mcart demo)
 
-This guide covers full setup from AWS EC2 creation to ingress verification for both services in namespace `mcart`.
+This guide covers full setup from AWS EC2 creation to CI/CD deployment and verification for both services in namespace `mcart`.
 
 ## 1) Create EC2 Instance (AWS)
 
 Use these settings:
 
 - AMI: `Amazon Linux 2023`
-- Instance type: `t3.micro` (demo)
-- Storage: `8 GiB` (you can increase later)
+- Instance type: `t3.small` (recommended minimum for k3s + 2 Java services)
+- Storage: `8 GiB` to start (increase to `20+ GiB` if needed)
 - Public IP: `Enabled`
 - Key pair: create/download `.pem`
 
 Security Group inbound rules:
 
-- `22` (SSH) from `My IP`
+- `22` (SSH) from `0.0.0.0/0` for quick demo (tighten later)
 - `80` (HTTP) from `0.0.0.0/0`
 - `443` (HTTPS) from `0.0.0.0/0`
 
@@ -42,11 +42,11 @@ chmod 600 ~/.kube/config
 Verify:
 
 ```bash
-sudo k3s kubectl get nodes
+sudo k3s kubectl get nodes -o wide
 sudo k3s kubectl get pods -A
 ```
 
-## 4) Stabilize small node (recommended for t3.micro)
+## 4) Add swap (recommended)
 
 ```bash
 sudo fallocate -l 2G /swapfile
@@ -67,7 +67,7 @@ sudo chown -R ec2-user:ec2-user /opt/mcart-product-service /opt/mcart-product-se
 
 ## 6) Copy manifests from local machine to EC2
 
-Run from your local machine (PowerShell), not on EC2:
+Run from local PowerShell:
 
 ```powershell
 $KEY = "C:\\path\\to\\your-key.pem"
@@ -77,175 +77,142 @@ scp -i $KEY "<local-path>\\mcart-product-service\\k8s\\base\\*" "$HOST:/opt/mcar
 scp -i $KEY "<local-path>\\mcart-product-search-service\\k8s\\base\\*" "$HOST:/opt/mcart-product-search-service/k8s/base/"
 ```
 
-## 7) Configure RDS connectivity (required before app start)
+## 7) Configure RDS connectivity
 
-In AWS:
+In AWS RDS Security Group:
 
-1. Open RDS instance SG inbound rules.
-2. Add rule: `PostgreSQL 5432`.
-3. Source: EC2 instance security group ID.
+1. Add inbound `PostgreSQL 5432`
+2. Source = EC2 instance security group
 
-From EC2, verify DB port reachability:
+Test from EC2:
 
 ```bash
 sudo dnf install -y nmap-ncat
-nc -vz mcart-db.cfaqum0egx32.ap-south-1.rds.amazonaws.com 5432
+nc -vz <RDS_ENDPOINT> 5432
 ```
 
-Expected: connection `succeeded`.
-
-## 8) Apply namespace and shared config
+## 8) Apply namespace and config
 
 ```bash
-sudo k3s kubectl apply -f /opt/mcart-product-service/k8s/base/namespace.yaml
-sudo k3s kubectl apply -f /opt/mcart-product-service/k8s/base/configmap.yaml
+sudo k3s kubectl apply --validate=false -f /opt/mcart-product-service/k8s/base/namespace.yaml
+sudo k3s kubectl apply --validate=false -f /opt/mcart-product-service/k8s/base/configmap.yaml
 ```
 
-## 9) Create shared secret
-
-Replace placeholders with real values:
+## 9) Deploy both services
 
 ```bash
-sudo k3s kubectl -n mcart create secret generic mcart-shared-secrets \
-  --from-literal=AWS_ACCESS_KEY='<...>' \
-  --from-literal=AWS_SECRET_KEY='<...>' \
-  --from-literal=DB_PASSWORD='postgres' \
-  --from-literal=ES_BASE64_API_KEY='<...>' \
-  --dry-run=client -o yaml | sudo k3s kubectl apply -f -
+sudo k3s kubectl apply --validate=false -f /opt/mcart-product-service/k8s/base/deployment.yaml
+sudo k3s kubectl apply --validate=false -f /opt/mcart-product-service/k8s/base/service.yaml
+sudo k3s kubectl apply --validate=false -f /opt/mcart-product-search-service/k8s/base/deployment.yaml
+sudo k3s kubectl apply --validate=false -f /opt/mcart-product-search-service/k8s/base/service.yaml
 ```
 
-## 10) Deploy both services
+## 10) Deploy single ingress
+
+Use one ingress for both routes:
+
+- `/api/search` and `/api/search/products` -> search service
+- all other paths `/` -> product service
+
+Apply combined ingress:
 
 ```bash
-sudo k3s kubectl apply -f /opt/mcart-product-service/k8s/base/deployment.yaml
-sudo k3s kubectl apply -f /opt/mcart-product-service/k8s/base/service.yaml
-
-sudo k3s kubectl apply -f /opt/mcart-product-search-service/k8s/base/deployment.yaml
-sudo k3s kubectl apply -f /opt/mcart-product-search-service/k8s/base/service.yaml
+sudo k3s kubectl apply --validate=false -f /tmp/mcart-ingress.yaml
 ```
 
-## 11) Deploy single ingress (no domain required)
-
-Create one combined ingress:
-
-```bash
-cat > /tmp/mcart-ingress.yaml <<'EOF'
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: mcart-ingress
-  namespace: mcart
-spec:
-  ingressClassName: traefik
-  rules:
-    - http:
-        paths:
-          - path: /api/search/products
-            pathType: Prefix
-            backend:
-              service:
-                name: mcart-product-search-service
-                port:
-                  number: 8081
-          - path: /api/search
-            pathType: Prefix
-            backend:
-              service:
-                name: mcart-product-search-service
-                port:
-                  number: 8081
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: mcart-product-service
-                port:
-                  number: 8080
-EOF
-
-sudo k3s kubectl apply -f /tmp/mcart-ingress.yaml
-```
-
-If old ingresses exist, remove them:
+If old ingresses exist, remove:
 
 ```bash
 sudo k3s kubectl delete ingress mcart-product-service-ingress -n mcart --ignore-not-found
 sudo k3s kubectl delete ingress mcart-product-search-service-ingress -n mcart --ignore-not-found
 ```
 
-## 12) Verification
+## 11) Elastic Cloud setup
 
-Cluster objects:
+Set:
 
-```bash
-sudo k3s kubectl get nodes
-sudo k3s kubectl get pods,svc,ingress -n mcart
+- `ES_URL=https://<elastic-cloud-endpoint>:443`
+- `ES_BASE64_API_KEY=<api-key-value>`
+
+Verify from local:
+
+```powershell
+curl.exe -s "https://<elastic-cloud-endpoint>:443" -H "Authorization: ApiKey <ES_BASE64_API_KEY>"
 ```
 
-Route verification from local machine:
+## 12) GitHub Actions setup
+
+In each repo -> `Settings` -> `Environments` -> `production`:
+
+Add environment secrets:
+
+- `EC2_HOST` = EC2 public IP
+- `EC2_USER` = `ec2-user`
+- `EC2_SSH_KEY` = private key content (`-----BEGIN...-----` to `-----END...-----`)
+- `AWS_ACCESS_KEY`
+- `AWS_SECRET_KEY`
+- `DB_PASSWORD`
+- `ES_BASE64_API_KEY`
+
+Branch protection on `main`:
+
+- require pull request
+- require status check `CI / build-and-test`
+
+## 13) Current CD behavior
+
+CD pipeline now:
+
+- applies `namespace.yaml` and `configmap.yaml`
+- creates/applies `mcart-shared-secrets` from GitHub environment secrets
+- applies deployment/service/ingress
+- updates image to `sha-${GITHUB_SHA}` and waits rollout
+
+This means both ConfigMap and Secret values get refreshed by CD on merge to `main`.
+
+## 14) Test deployment
+
+1. Create a small commit and merge to `main`.
+2. Wait for `CD` job success.
+3. Verify:
 
 ```bash
+sudo k3s kubectl get pods,svc,ingress -n mcart
+sudo k3s kubectl get deploy -n mcart
+```
+
+From local:
+
+```bash
+curl -i http://<EC2_PUBLIC_IP>/actuator/health
 curl -i http://<EC2_PUBLIC_IP>/api/search
 curl -i http://<EC2_PUBLIC_IP>/api/search/products
-curl -i http://<EC2_PUBLIC_IP>/actuator/health
 ```
 
-## 13) Troubleshooting quick checks
+## 15) Troubleshooting
 
-Pod crash logs:
+If CD/apply fails with `TLS handshake timeout`:
 
 ```bash
-sudo k3s kubectl logs -n mcart deploy/mcart-product-service --previous --tail=200
-sudo k3s kubectl logs -n mcart deploy/mcart-product-search-service --previous --tail=200
+free -h
+sudo systemctl restart k3s
+sleep 30
+sudo k3s kubectl get nodes
+sudo k3s kubectl get pods -A
 ```
 
-Rollout status:
+If needed, reduce control-plane load:
 
 ```bash
-sudo k3s kubectl rollout status deployment/mcart-product-service -n mcart
-sudo k3s kubectl rollout status deployment/mcart-product-search-service -n mcart
+sudo k3s kubectl -n kube-system scale deployment metrics-server --replicas=0
 ```
 
-If app health shows Elasticsearch DOWN, update:
+If app health is `DOWN` due to Elasticsearch:
 
-- `ES_URL` in `k8s/base/configmap.yaml`
-- `ES_BASE64_API_KEY` in `k8s/base/secret-template.yaml` (and recreate/apply secret)
-
-Restart deployments after config/secret updates:
+- verify `ES_URL` and `ES_BASE64_API_KEY`
+- restart deployments:
 
 ```bash
 sudo k3s kubectl rollout restart deployment/mcart-product-service -n mcart
 sudo k3s kubectl rollout restart deployment/mcart-product-search-service -n mcart
 ```
-
-## 14) GitHub Actions prerequisites
-
-In each repo settings:
-
-- Create environment: `production` with required reviewers
-- Add secrets:
-  - `EC2_HOST` = `<EC2_PUBLIC_IP>`
-  - `EC2_USER` = `ec2-user`
-  - `EC2_SSH_KEY` = private key content
-- Branch protection on `main`:
-  - require PR
-  - require status check `CI / build-and-test`
-
-## 15) CD behavior for ConfigMap and Ingress
-
-How ConfigMap updates work with current CD:
-
-- CD reapplies `k8s/base/configmap.yaml` during deploy.
-- CD then updates deployment image tag to `sha-${GITHUB_SHA}`.
-- This triggers rollout, so new pods read updated ConfigMap values.
-
-Important:
-
-- If only ConfigMap changes and no rollout happens, old pods keep old env values.
-- Current pipelines are safe because `kubectl set image ...` forces rollout on each deploy.
-
-Ingress ownership recommendation (single ingress setup):
-
-- Keep only one source of truth for ingress to avoid conflicts.
-- Recommended: product-service repo owns `mcart-ingress`.
-- In search-service CD, skip `kubectl apply -f /opt/mcart-product-search-service/k8s/base/ingress.yaml`.
