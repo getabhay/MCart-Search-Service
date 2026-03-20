@@ -57,7 +57,12 @@ jobs:
             IMAGE="${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.image_tag }}"
             sudo kubectl apply -f /opt/mcart-product-search-service/k8s/base/namespace.yaml
             sudo kubectl apply -f /opt/mcart-product-search-service/k8s/base/configmap.yaml
-            sudo kubectl get secret mcart-shared-secrets -n mcart >/dev/null
+            sudo kubectl create secret generic mcart-shared-secrets -n mcart \
+              --from-literal=AWS_ACCESS_KEY='${{ secrets.AWS_ACCESS_KEY }}' \
+              --from-literal=AWS_SECRET_KEY='${{ secrets.AWS_SECRET_KEY }}' \
+              --from-literal=DB_PASSWORD='${{ secrets.DB_PASSWORD }}' \
+              --from-literal=ES_BASE64_API_KEY='${{ secrets.ES_BASE64_API_KEY }}' \
+              --dry-run=client -o yaml | sudo kubectl apply -f -
             sudo kubectl apply -f /opt/mcart-product-search-service/k8s/base/deployment.yaml
             sudo kubectl apply -f /opt/mcart-product-search-service/k8s/base/service.yaml
             sudo kubectl apply -f /opt/mcart-product-search-service/k8s/base/ingress.yaml
