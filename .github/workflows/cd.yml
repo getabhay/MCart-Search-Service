@@ -1,0 +1,65 @@
+name: CD
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE_NAME: ghcr.io/getabhay/mcart-product-search-service
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.vars.outputs.image_tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compute image tag
+        id: vars
+        run: echo "image_tag=sha-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.image_tag }}
+            ${{ env.IMAGE_NAME }}:latest
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    environment: production
+    steps:
+      - name: Deploy to EC2 k3s
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+            IMAGE="${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.image_tag }}"
+            sudo kubectl apply -f /opt/mcart-product-search-service/k8s/base/namespace.yaml
+            sudo kubectl apply -f /opt/mcart-product-search-service/k8s/base/configmap.yaml
+            sudo kubectl get secret mcart-shared-secrets -n mcart >/dev/null
+            sudo kubectl apply -f /opt/mcart-product-search-service/k8s/base/deployment.yaml
+            sudo kubectl apply -f /opt/mcart-product-search-service/k8s/base/service.yaml
+            sudo kubectl apply -f /opt/mcart-product-search-service/k8s/base/ingress.yaml
+            sudo kubectl set image deployment/mcart-product-search-service mcart-product-search-service="$IMAGE" -n mcart
+            sudo kubectl rollout status deployment/mcart-product-search-service -n mcart --timeout=240s
